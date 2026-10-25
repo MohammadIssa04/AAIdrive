@@ -7,6 +7,9 @@ on:
     branches: ['issa']
   workflow_dispatch:
 
+permissions:
+  contents: write   # to publish the APK as a release
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -38,3 +41,11 @@ jobs:
         with:
           name: aaidrive-issa
           path: app/build/outputs/apk/nomapNonalyticsFull/debug/*.apk
+      - name: Publish the APK as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/nomapNonalyticsFull/debug/*.apk aaidrive-issa.apk
+          gh release create "issa-${{ github.run_number }}" aaidrive-issa.apk --prerelease \
+            --target "${{ github.sha }}" --title "AAIdrive Issa build ${{ github.run_number }}" \
+            --notes "Debug build of ${{ github.sha }} – re-signed with the Issa key before installing."
