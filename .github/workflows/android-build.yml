@@ -2,7 +2,7 @@ name: build  # used as the badge name
 
 on:
   push:
-    branches: ['*']
+    branches-ignore: ['issa']   # the Issa branch has its own, lighter build (issa-build.yml)
     tags: ['*']
   pull_request:
     types: [opened, synchronize]
