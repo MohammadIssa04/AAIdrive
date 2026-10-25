@@ -519,7 +519,8 @@
     <string name="MUSIC_SEARCH_EMPTY">&lt;No Results Found&gt;</string>
     <string name="MUSIC_SKIP_PREVIOUS">Back</string>
     <string name="MUSIC_SKIP_NEXT">Next</string>
-    <string name="MUSIC_PLAY_PAUSE">Play / Pause</string>
+    <string name="MUSIC_PLAY">Play</string>
+    <string name="MUSIC_PAUSE">Pause</string>
     <string name="MUSIC_COVER_TITLE">Cover</string>
     <string name="MUSIC_TURN_SHUFFLE_UNAVAILABLE">Shuffle Unavailable</string>
     <string name="MUSIC_TURN_SHUFFLE_ON">Turn Shuffle On</string>

@@ -473,7 +473,8 @@
     <string name="MUSIC_SEARCH_EMPTY">&lt;Inga sökträffar&gt;</string>
     <string name="MUSIC_SKIP_PREVIOUS">Backa</string>
     <string name="MUSIC_SKIP_NEXT">Nästa</string>
-    <string name="MUSIC_PLAY_PAUSE">Spela / Pausa</string>
+    <string name="MUSIC_PLAY">Spela</string>
+    <string name="MUSIC_PAUSE">Pausa</string>
     <string name="MUSIC_COVER_TITLE">Omslag</string>
     <string name="MUSIC_TURN_SHUFFLE_UNAVAILABLE">Shuffle ej tillgänglig</string>
     <string name="MUSIC_TURN_SHUFFLE_ON">Slå på Shuffle</string>
