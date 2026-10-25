@@ -76,6 +76,8 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 	var skipNextEnabled: Boolean = true
 	var lastPositionActionTime: Long = 0
 	var coverView: CoverView? = null    // the full cover screen, opened from the cover / the song
+	val albumArtBigSize: Int        // the playback screen's cover, a little bigger than the layout's 320 where there is room
+		get() = if (albumArtBigComponent != null) 350 else 320
 
 	var artistTextScroller: TextScroller = TextScroller("", 0)
 	var albumTextScroller: TextScroller = TextScroller("", 0)
@@ -337,7 +339,29 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 		queueToolbarButton.setProperty(RHMIProperty.PropertyId.BOOKMARKABLE, true)
 		customActionButton.setProperty(RHMIProperty.PropertyId.BOOKMARKABLE, true)
 
+		// a tidier side menu: no Actions page, and no Back / Next (the steering wheel and the cover screen have them)
+		hideButton(customActionButton)
+		if (state !is RHMIState.AudioHmiState) {
+			skipBackButton?.let { hideButton(it) }
+			skipNextButton?.let { hideButton(it) }
+			skipBackButton = null
+			skipNextButton = null
+		}
+		// no app logo under the cover, and the cover a little bigger in the room that leaves
+		val logoModelId = appLogoModel?.id
+		state.componentsList.filterIsInstance<RHMIComponent.Image>().filter { it.model == logoModelId }.forEach { it.setVisible(false) }
+		albumArtBigComponent?.setProperty(RHMIProperty.PropertyId.WIDTH.id, albumArtBigSize)
+		albumArtBigComponent?.setProperty(RHMIProperty.PropertyId.HEIGHT.id, albumArtBigSize)
+
 		initialized = true
+	}
+
+	private fun hideButton(button: RHMIComponent.ToolbarButton) {
+		try {
+			button.setVisible(false)
+		} catch (e: IOException) {}
+		button.setSelectable(false)
+		button.setEnabled(false)
 	}
 
 	fun show() {
@@ -458,7 +482,7 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 
 		val songCoverArt = song?.coverArt
 		if (songCoverArt != null) {
-			albumArtBigModel.value = graphicsHelpers.compress(songCoverArt, 320, 320, quality = 65)
+			albumArtBigModel.value = graphicsHelpers.compress(songCoverArt, albumArtBigSize, albumArtBigSize, quality = 65)
 			if (albumArtSmallModel != null) {
 				albumArtSmallModel.value = graphicsHelpers.compress(songCoverArt, 200, 200, quality = 65)
 			}
@@ -467,7 +491,7 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 		} else if (song?.coverArtUri != null) {
 			try {
 				val coverArt = phoneAppResources.getUriDrawable(song.coverArtUri)
-				albumArtBigModel.value = graphicsHelpers.compress(coverArt, 320, 320, quality = 65)
+				albumArtBigModel.value = graphicsHelpers.compress(coverArt, albumArtBigSize, albumArtBigSize, quality = 65)
 				if (albumArtSmallModel != null) {
 					albumArtSmallModel.value = graphicsHelpers.compress(coverArt, 200, 200, quality = 65)
 				}
@@ -518,8 +542,7 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 	}
 
 	private fun redrawActions() {
-		val customactions = controller.getCustomActions()
-		customActionButton.setEnabled(customactions.isNotEmpty())
+		// (the Actions button stays hidden, see initWidgetsLater)
 
 		// redraw if the skip actions changed status
 		// the AudioState playlist isn't cached, so we have to track when to redraw
