@@ -75,6 +75,7 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 	var skipBackEnabled: Boolean = true
 	var skipNextEnabled: Boolean = true
 	var lastPositionActionTime: Long = 0
+	var coverView: CoverView? = null    // the full cover screen, opened from the cover / the song
 
 	var artistTextScroller: TextScroller = TextScroller("", 0)
 	var albumTextScroller: TextScroller = TextScroller("", 0)
@@ -196,8 +197,9 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 	/**
 	 * Link up the event handlers to the respective destination states
 	 */
-	fun initWidgets(appSwitcherView: AppSwitcherView, enqueuedView: EnqueuedView, browseView: BrowseView, customActionsView: CustomActionsView) {
+	fun initWidgets(appSwitcherView: AppSwitcherView, enqueuedView: EnqueuedView, browseView: BrowseView, customActionsView: CustomActionsView, coverView: CoverView? = null) {
 		state as RHMIState.ToolbarState
+		this.coverView = coverView
 		state.focusCallback = FocusCallback { focused ->
 			visible = focused
 			if (focused) {
@@ -233,6 +235,10 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 				browseView.clearPages()
 				val page = browseView.pushBrowsePage(null)
 				state.getAlbumAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = page.state.id
+			}
+			// clicking the cover opens the full cover screen
+			if (coverView != null) {
+				state.getCoverAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = coverView.state.id
 			}
 		}
 	}
@@ -272,7 +278,15 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 		skipNextButton?.getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionButtonCallback { controller.skipToNext() }
 
 		// try to hide extra buttons
-		if (state !is RHMIState.AudioHmiState) {
+		val cover = coverView
+		if (state !is RHMIState.AudioHmiState && cover != null) {
+			// the book icon's place opens the full cover screen
+			buttons[3].getImageModel()?.asImageIdModel()?.imageId = musicImageIDs.SONG
+			buttons[3].getTooltipModel()?.asRaDataModel()?.value = L.MUSIC_COVER_TITLE
+			buttons[3].getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = cover.state.id
+			buttons[3].setSelectable(true)
+			buttons[3].setEnabled(true)
+		} else if (state !is RHMIState.AudioHmiState) {
 			// the book icon
 			try {
 				buttons[3].getImageModel()?.asImageIdModel()?.imageId = 0
@@ -301,11 +315,21 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 			}
 
 			state.getPlayListFocusRowModel()?.asRaIntModel()?.value = 1
+			// the rows are: next on top, the song, previous at the bottom (see redrawAudiostatePlaylist)
+			// clicking the song opens the full cover screen, when the car lets this list open a window
+			val coverTarget = if (cover != null) state.getPlayListAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel() else null
+			if (cover != null && coverTarget != null) {
+				coverTarget.value = cover.state.id
+			}
 			state.getPlayListAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
 				when (index) {
-					0 -> controller.skipToPrevious()
-					1 -> controller.seekTo(0)
-					2 -> controller.skipToNext()
+					0 -> controller.skipToNext()
+					1 -> if (coverTarget == null) controller.seekTo(0)
+					2 -> controller.skipToPrevious()
+				}
+				// skipping stays in this window
+				if (index != 1 && coverTarget != null) {
+					throw RHMIActionAbort()
 				}
 			}
 		}
@@ -467,9 +491,10 @@ class PlaybackView(val state: RHMIState, val controller: MusicController, val ca
 		if (state is RHMIState.AudioHmiState) {
 			val playlistModel = state.getPlayListModel()?.asRaListModel()
 			val playlist = RHMIModel.RaListModel.RHMIListConcrete(10)
-			playlist.addRow(PlaylistItem(false, skipBackEnabled, BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SKIP_BACK), L.MUSIC_SKIP_PREVIOUS))
+			// arrows only: next on top, the song in the middle, previous at the bottom
+			playlist.addRow(PlaylistItem(false, skipNextEnabled, BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SKIP_NEXT), ""))
 			playlist.addRow(PlaylistItem(isBuffering, true, grayscaleNoteIcon, title))
-			playlist.addRow(PlaylistItem(false, skipNextEnabled, BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SKIP_NEXT), L.MUSIC_SKIP_NEXT))
+			playlist.addRow(PlaylistItem(false, skipBackEnabled, BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SKIP_BACK), ""))
 			playlistModel?.asRaListModel()?.value = playlist
 		}
 	}

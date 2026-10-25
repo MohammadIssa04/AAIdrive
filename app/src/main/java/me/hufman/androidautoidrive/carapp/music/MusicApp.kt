@@ -28,6 +28,7 @@ import me.hufman.androidautoidrive.music.MusicController
 import me.hufman.androidautoidrive.utils.GraphicsHelpers
 import me.hufman.androidautoidrive.utils.Utils.loadZipfile
 import me.hufman.androidautoidrive.utils.removeFirst
+import me.hufman.androidautoidrive.utils.removeFirstOrNull
 
 
 class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityAccess: SecurityAccess, val carAppAssets: CarAppResources, val musicImageIDs: MusicImageIDs, val phoneAppResources: PhoneAppResources, val graphicsHelpers: GraphicsHelpers, val musicAppDiscovery: MusicAppDiscovery, val musicController: MusicController, val musicAppMode: MusicAppMode) {
@@ -51,6 +52,7 @@ class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityA
 	val browseView: BrowseView
 	val inputState: RHMIState
 	val customActionsView: CustomActionsView
+	val coverView: CoverView?
 	val currentPlaybackView: PlaybackView
 		get() = if (musicAppMode.shouldId5Playback() && playbackId5View != null) {
 			playbackId5View
@@ -93,6 +95,14 @@ class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityA
 			browseView = BrowseView(listOf(unclaimedStates.removeFirst { BrowseView.fits(it) }, unclaimedStates.removeFirst { BrowseView.fits(it) }, unclaimedStates.removeFirst { BrowseView.fits(it) }), musicController, musicImageIDs, graphicsHelpers)
 			inputState = unclaimedStates.removeFirst { it.componentsList.filterIsInstance<RHMIComponent.Input>().firstOrNull()?.suggestModel ?: 0 > 0 }
 			customActionsView = CustomActionsView(unclaimedStates.removeFirst { CustomActionsView.fits(it) }, graphicsHelpers, musicController)
+			coverView = try {
+				unclaimedStates.removeFirstOrNull { CoverView.fits(it) }?.let {
+					CoverView(it, musicController, phoneAppResources, graphicsHelpers, musicImageIDs, musicAppMode)
+				}
+			} catch (e: Exception) {
+				Log.w(TAG, "No window for the cover screen", e)
+				null
+			}
 			globalMetadata = GlobalMetadata(carApp, musicController)
 
 			Log.i(TAG, "Selected state ${appSwitcherView.state.id} for App Switcher")
@@ -104,6 +114,7 @@ class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityA
 			Log.i(TAG, "Selected state ${browseView.states[2].id} for Browse Page 3")
 			Log.i(TAG, "Selected state ${inputState.id} for Input")
 			Log.i(TAG, "Selected state ${customActionsView.state.id} for Custom Actions")
+			Log.i(TAG, "Selected state ${coverView?.state?.id} for Cover")
 
 			initWidgets()
 
@@ -380,8 +391,9 @@ class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityA
 		val currentPlaybackView = currentPlaybackView
 		globalMetadata.initWidgets()
 		appSwitcherView.initWidgets(currentPlaybackView)
-		playbackView.initWidgets(appSwitcherView, enqueuedView, browseView, customActionsView)
-		playbackId5View?.initWidgets(appSwitcherView, enqueuedView, browseView, customActionsView)
+		coverView?.initWidgets()
+		playbackView.initWidgets(appSwitcherView, enqueuedView, browseView, customActionsView, coverView)
+		playbackId5View?.initWidgets(appSwitcherView, enqueuedView, browseView, customActionsView, coverView)
 		enqueuedView.initWidgets(currentPlaybackView)
 		browseView.initWidgets(currentPlaybackView, inputState)
 		customActionsView.initWidgets(currentPlaybackView)
@@ -415,6 +427,9 @@ class MusicApp(val iDriveConnectionStatus: IDriveConnectionStatus, val securityA
 		}
 		if (customActionsView.visible) {
 			customActionsView.redraw()
+		}
+		if (coverView?.visible == true) {
+			coverView.redraw()
 		}
 
 		// if running over USB or audio context is granted, set the global metadata
