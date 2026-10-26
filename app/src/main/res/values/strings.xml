@@ -520,6 +520,8 @@
     <string name="MUSIC_SKIP_PREVIOUS">Back</string>
     <string name="MUSIC_SKIP_NEXT">Next</string>
     <string name="MUSIC_PLAY">Play</string>
+    <string name="MUSIC_PREVIOUS_TRACK">Previous track</string>
+    <string name="MUSIC_NEXT_TRACK">Next track</string>
     <string name="MUSIC_PAUSE">Pause</string>
     <string name="MUSIC_COVER_TITLE">Cover</string>
     <string name="MUSIC_TURN_SHUFFLE_UNAVAILABLE">Shuffle Unavailable</string>

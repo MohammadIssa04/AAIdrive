@@ -117,6 +117,8 @@ object L {
 	val MUSIC_SKIP_PREVIOUS by StringResourceDelegate("Back")
 	val MUSIC_SKIP_NEXT by StringResourceDelegate("Next")
 	val MUSIC_PLAY by StringResourceDelegate("Play")
+	val MUSIC_PREVIOUS_TRACK by StringResourceDelegate("Previous track")
+	val MUSIC_NEXT_TRACK by StringResourceDelegate("Next track")
 	val MUSIC_PAUSE by StringResourceDelegate("Pause")
 	val MUSIC_COVER_TITLE by StringResourceDelegate("Cover")
 	val MUSIC_TURN_SHUFFLE_UNAVAILABLE by StringResourceDelegate("Shuffle Unavailable")
