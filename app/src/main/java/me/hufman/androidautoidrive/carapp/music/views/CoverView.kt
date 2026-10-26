@@ -77,10 +77,13 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 		}
 
 		// an empty side menu: the buttons are next to the cover
+		// (the side menu has to stay visible, or the car squeezes the whole window into a narrow box)
 		state.toolbarComponentsList.forEach {
 			try {
-				it.setVisible(false)
+				it.getImageModel()?.asImageIdModel()?.imageId = 0
 			} catch (e: Exception) {}
+			it.getTooltipModel()?.asRaDataModel()?.value = ""
+			it.setVisible(true)
 			it.setSelectable(false)
 			it.setEnabled(false)
 		}
@@ -108,7 +111,6 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 			setProperty(RHMIProperty.PropertyId.POSITION_X.id, textX)
 			setProperty(RHMIProperty.PropertyId.POSITION_Y.id, 70)
 			setProperty(RHMIProperty.PropertyId.WIDTH.id, textWidth)
-			setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH.id, "*")
 		}
 		buttonList.apply {
 			setVisible(true)
