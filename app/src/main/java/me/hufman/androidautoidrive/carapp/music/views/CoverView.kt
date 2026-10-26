@@ -44,7 +44,7 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 
 	val imageComponent = state.componentsList.filterIsInstance<RHMIComponent.Image>().first { it.getModel() is RHMIModel.RaImageModel }
 	val titleLabel = state.componentsList.filterIsInstance<RHMIComponent.Label>().first()
-	val buttonList = state.componentsList.filterIsInstance<RHMIComponent.List>()[0]     // previous / play-pause / next
+	val buttonList = state.componentsList.filterIsInstance<RHMIComponent.List>()[0]     // previous track / song (tap = play or pause) / next track
 	val infoList = state.componentsList.filterIsInstance<RHMIComponent.List>()[1]       // artist, album line, time
 
 	// the area next to the (empty) side menu, as the playback screen's own layout uses it
@@ -60,9 +60,7 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 	private var drawnCover: Any? = null
 	private var drawnTitle: String? = null
 	private var drawnInfo: List<String>? = null
-	private var drawnPaused: Boolean? = null
-	private val pauseIcon by lazy { icon(paused = false) }
-	private val playIcon by lazy { icon(paused = true) }
+	private var drawnRows: List<Any?>? = null
 
 	fun initWidgets() {
 		state as RHMIState.ToolbarState
@@ -118,14 +116,13 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 			setSelectable(true)
 			setProperty(RHMIProperty.PropertyId.POSITION_X.id, textX)
 			setProperty(RHMIProperty.PropertyId.POSITION_Y.id, min(height - 160, 235))
-			setProperty(RHMIProperty.PropertyId.WIDTH.id, min(textWidth, 420))
-			setProperty(RHMIProperty.PropertyId.LIST_COLUMNWIDTH.id, "0,60,*")
+			setProperty(RHMIProperty.PropertyId.WIDTH.id, min(textWidth, 520))
 			// pushing a button stays in this window
 			getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = state.id
 			getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
 				when (index) {
 					0 -> controller.skipToPrevious()
-					1 -> controller.togglePlay()
+					1 -> controller.togglePlay()     // the song in the middle
 					2 -> controller.skipToNext()
 				}
 			}
@@ -136,7 +133,7 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 		drawnCover = null
 		drawnTitle = null
 		drawnInfo = null
-		drawnPaused = null
+		drawnRows = null
 	}
 
 	private fun focusPlayPause() {
@@ -185,14 +182,15 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 			infoList.getModel()?.value = rows
 		}
 
-		if (position.isPaused != drawnPaused) {
-			val first = drawnPaused == null
-			drawnPaused = position.isPaused
-			val rows = RHMIModel.RaListModel.RHMIListConcrete(3)
-			rows.addRow(arrayOf("", BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SKIP_BACK), L.MUSIC_SKIP_PREVIOUS))
-			rows.addRow(arrayOf("", BMWRemoting.RHMIResourceData(BMWRemoting.RHMIResourceType.IMAGEDATA, if (position.isPaused) playIcon else pauseIcon),
-					if (position.isPaused) L.MUSIC_PLAY else L.MUSIC_PAUSE))
-			rows.addRow(arrayOf("", BMWRemoting.RHMIResourceIdentifier(BMWRemoting.RHMIResourceType.IMAGEID, musicImageIDs.SKIP_NEXT), L.MUSIC_SKIP_NEXT))
+		// the same three rows as the car's own Bluetooth view: previous track, the song, next track
+		val rowKey = listOf(position.isPaused, title, song?.artist ?: "")
+		if (rowKey != drawnRows) {
+			val first = drawnRows == null
+			drawnRows = rowKey
+			val rows = RHMIModel.RaListModel.RHMIListConcrete(1)
+			rows.addRow(arrayOf(L.MUSIC_PREVIOUS_TRACK))
+			rows.addRow(arrayOf(if (position.isPaused) "\u275A\u275A  $title" else "\u25B6  $title"))
+			rows.addRow(arrayOf(L.MUSIC_NEXT_TRACK))
 			buttonList.getModel()?.value = rows
 			if (!first) focusPlayPause()    // a new list puts the cursor back at the top
 		}
@@ -232,25 +230,5 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 		}
 		canvas.drawText("♪", coverSize / 2f, coverSize * 0.64f, paint)
 		return bitmap
-	}
-
-	/** The play / pause symbol for the button list, white on transparent */
-	private fun icon(paused: Boolean): ByteArray {
-		val size = 48
-		val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-		val canvas = Canvas(bitmap)
-		val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-		if (paused) {   // show Play
-			canvas.drawPath(Path().apply {
-				moveTo(15f, 9f)
-				lineTo(39f, 24f)
-				lineTo(15f, 39f)
-				close()
-			}, paint)
-		} else {        // show Pause
-			canvas.drawRect(13f, 10f, 21f, 38f, paint)
-			canvas.drawRect(27f, 10f, 35f, 38f, paint)
-		}
-		return graphicsHelpers.compress(bitmap, size, size)
 	}
 }
