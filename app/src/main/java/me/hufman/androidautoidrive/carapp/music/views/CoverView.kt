@@ -119,13 +119,7 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 			setProperty(RHMIProperty.PropertyId.WIDTH.id, min(textWidth, 520))
 			// pushing a button stays in this window
 			getAction()?.asHMIAction()?.getTargetModel()?.asRaIntModel()?.value = state.id
-			getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { index ->
-				when (index) {
-					0 -> controller.skipToPrevious()
-					1 -> controller.togglePlay()     // the song in the middle
-					2 -> controller.skipToNext()
-				}
-			}
+			getAction()?.asRAAction()?.rhmiActionCallback = RHMIActionListCallback { _ -> controller.togglePlay() }
 		}
 	}
 
@@ -182,17 +176,15 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 			infoList.getModel()?.value = rows
 		}
 
-		// the same three rows as the car's own Bluetooth view: previous track, the song, next track
-		val rowKey = listOf(position.isPaused, title, song?.artist ?: "")
+		// one row: the song. Pressing the rotary plays or pauses – there are no buttons on the cover screen
+		val rowKey = listOf(position.isPaused, title)
 		if (rowKey != drawnRows) {
 			val first = drawnRows == null
 			drawnRows = rowKey
 			val rows = RHMIModel.RaListModel.RHMIListConcrete(1)
-			rows.addRow(arrayOf(L.MUSIC_PREVIOUS_TRACK))
-			rows.addRow(arrayOf(if (position.isPaused) "\u275A\u275A  $title" else "\u25B6  $title"))
-			rows.addRow(arrayOf(L.MUSIC_NEXT_TRACK))
+			rows.addRow(arrayOf(if (position.isPaused) "\u25B6  $title" else "\u275A\u275A  $title"))
 			buttonList.getModel()?.value = rows
-			if (!first) focusPlayPause()    // a new list puts the cursor back at the top
+			if (!first) focusPlayPause()
 		}
 	}
 
