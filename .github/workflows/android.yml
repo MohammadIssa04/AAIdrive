@@ -36,6 +36,13 @@ jobs:
         with:
           name: issa-music-unsigned
           path: app/build/outputs/apk/release/*.apk
+      - name: Publish the unsigned APK (so it can be signed with the Issa key)
+        run: |
+          mkdir -p /tmp/apk && cd /tmp/apk && git init -q && git checkout -q -b phone-app-apk
+          cp $GITHUB_WORKSPACE/app/build/outputs/apk/release/app-release-unsigned.apk .
+          git add app-release-unsigned.apk
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "unsigned APK of run ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" phone-app-apk
       - name: Publish the status
         if: always()
         run: |
