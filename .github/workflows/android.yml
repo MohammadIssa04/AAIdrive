@@ -1,0 +1,53 @@
+name: issa-phone-app
+
+# Builds the Issa Music phone app (unsigned). It is signed afterwards with the Issa key, outside of GitHub.
+# A short status (result + the end of the Gradle log) is pushed to the branch "phone-app-status".
+on:
+  push:
+    branches: ['phone-app']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+      - name: Unit tests (search ranking)
+        id: tests
+        continue-on-error: true
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew testReleaseUnitTest --no-daemon --stacktrace 2>&1 | tee tests.log
+      - name: Build the APK
+        id: build
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Upload the APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: issa-music-unsigned
+          path: app/build/outputs/apk/release/*.apk
+      - name: Publish the status
+        if: always()
+        run: |
+          mkdir -p /tmp/st && cd /tmp/st && git init -q && git checkout -q -b phone-app-status
+          {
+            echo "run ${{ github.run_number }}  commit ${{ github.sha }}"
+            echo "tests: ${{ steps.tests.outcome }}   build: ${{ steps.build.outcome }}"
+            ls -la $GITHUB_WORKSPACE/app/build/outputs/apk/release/ 2>&1 || true
+            sha256sum $GITHUB_WORKSPACE/app/build/outputs/apk/release/*.apk 2>&1 || true
+            echo; echo "--- tests (end) ---"; tail -n 40 $GITHUB_WORKSPACE/tests.log 2>&1 || true
+            echo; echo "--- build (end) ---"; tail -n 80 $GITHUB_WORKSPACE/build.log 2>&1 || true
+          } > status.txt
+          git add status.txt
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "status of run ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" phone-app-status

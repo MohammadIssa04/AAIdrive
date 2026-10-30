@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- sound waves -->
+    <path android:strokeColor="#FFFFFF" android:strokeAlpha="0.55" android:strokeWidth="3.2" android:strokeLineCap="round"
+        android:pathData="M74,40 A20,20 0 0 1 74,68"/>
+    <path android:strokeColor="#FFFFFF" android:strokeAlpha="0.3" android:strokeWidth="3.2" android:strokeLineCap="round"
+        android:pathData="M80,34 A28,28 0 0 1 80,74"/>
+    <!-- disc with play -->
+    <path android:fillColor="#FFFFFF" android:pathData="M54,31 a23,23 0 1 0 0.01,0 z"/>
+    <path android:fillColor="#7A4DFF" android:pathData="M48,43 L66,54 L48,65 Z"/>
+</vector>
