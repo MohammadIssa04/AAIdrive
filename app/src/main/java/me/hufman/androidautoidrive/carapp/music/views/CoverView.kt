@@ -51,7 +51,7 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 	private val dimensions = RHMIDimensions.create(musicAppMode.capabilities)
 	val width = max(600, dimensions.visibleWidth - dimensions.paddingLeft - 200)
 	val height = max(300, dimensions.rhmiHeight - 60)
-	val coverSize = height - 20
+	val coverSize = height
 	val textX = coverSize + 30
 	val textWidth = max(260, width - textX - 10)
 
@@ -81,19 +81,20 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 				it.getImageModel()?.asImageIdModel()?.imageId = 0
 			} catch (e: Exception) {}
 			it.getTooltipModel()?.asRaDataModel()?.value = ""
-			it.setVisible(true)
 			it.setSelectable(false)
 			it.setEnabled(false)
 		}
+		// no icons: only the first button stays, so the window keeps its shape, the rest are hidden
+		state.toolbarComponentsList.forEachIndexed { i, it -> it.setVisible(i == 0) }
 		state.componentsList.forEach { it.setVisible(false) }
 
 		// the cover: as big as the screen is high, no background
 		imageComponent.apply {
 			setVisible(true)
 			setProperty(RHMIProperty.PropertyId.POSITION_X.id, 0)
-			setProperty(RHMIProperty.PropertyId.POSITION_Y.id, 10)
-			setProperty(RHMIProperty.PropertyId.WIDTH.id, coverSize)
-			setProperty(RHMIProperty.PropertyId.HEIGHT.id, coverSize)
+			setProperty(RHMIProperty.PropertyId.POSITION_Y.id, 0)
+			setProperty(RHMIProperty.PropertyId.WIDTH.id, width)
+			setProperty(RHMIProperty.PropertyId.HEIGHT.id, height)
 		}
 		titleLabel.apply {
 			setVisible(true)
@@ -149,12 +150,8 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 		if (coverKey != drawnCover) {
 			drawnCover = coverKey
 			try {
-				val art = cover(song)
-				imageModel().value = if (art != null) {
-					graphicsHelpers.compress(art, coverSize, coverSize, quality = 85)
-				} else {
-					graphicsHelpers.compress(placeholder(), coverSize, coverSize, quality = 85)
-				}
+				val art = cover(song) ?: placeholder()
+				imageModel().value = graphicsHelpers.compress(backdrop(art), width, height, quality = 85)
 			} catch (e: Exception) {
 				Log.w(TAG, "Couldn't show the cover", e)
 			}
@@ -186,6 +183,15 @@ class CoverView(val state: RHMIState, val controller: MusicController, val phone
 			buttonList.getModel()?.value = rows
 			if (!first) focusPlayPause()
 		}
+	}
+
+	/** One picture for the whole area: dark, with the cover big on the left, so nothing grey shows behind it */
+	private fun backdrop(art: Bitmap): Bitmap {
+		val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+		val canvas = Canvas(bitmap)
+		canvas.drawColor(Color.rgb(8, 8, 12))
+		canvas.drawBitmap(art, null, Rect(0, 0, coverSize, coverSize), Paint(Paint.FILTER_BITMAP_FLAG))
+		return bitmap
 	}
 
 	private fun imageModel() = imageComponent.getModel()!!.asRaImageModel()!!
