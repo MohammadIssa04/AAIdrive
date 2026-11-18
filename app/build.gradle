@@ -26,6 +26,9 @@ apply from: 'buildtools/screenshots.gradle'
 apply from: 'buildtools/preprocess_resources.gradle'
 
 def runProguardInDebug = false
+// The installed app is Issa Music (with AAIdrive's car link built in). Without -PissaFinal=true it is built as a
+// "Beta" that installs next to the real apps, with its own name, data and provider/permission names.
+def issaBeta = project.findProperty('issaFinal') != 'true'
 def isRunningOnCI = System.getenv("CI") == "true"
 
 final BUILD_DATE = new Date().toZonedDateTime().toEpochSecond()
@@ -47,19 +50,23 @@ android {
         }
     }
     defaultConfig {
-        applicationId "me.hufman.androidautoidrive"
+        applicationId issaBeta ? "com.musik.app.beta" : "com.musik.app"
         compileSdk 35
-        minSdkVersion 23
-        targetSdkVersion 36
+        minSdkVersion 26
+        targetSdkVersion 34   // Issa Music was made and tested with 34
         multiDexEnabled false
-        versionCode androidGitVersion.code() + 1
-        versionName androidGitVersion.name()
+        versionCode rootProject.ext.issaVersionCode
+        versionName rootProject.ext.issaVersionName
 //        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunner 'me.hufman.androidautoidrive.DexOpenerAndroidJUnitRunner'
         buildConfigField "long", "COMMIT_TIME", ((grgit != null && !androidGitVersion.name().contains("-dirty")) ? grgit.head().dateTime.toEpochSecond() : BUILD_DATE) + "L"
         manifestPlaceholders = [
                 spotify_api_key: System.env.AndroidAutoIdrive_SpotifyApiKey ? System.env.AndroidAutoIdrive_SpotifyApiKey : AndroidAutoIdrive_SpotifyApiKey,
-                appAuthRedirectScheme: applicationId
+                appAuthRedirectScheme: applicationId,
+                issaLabel: issaBeta ? "Issa Music Beta" : "Issa Music",
+                // the names other apps know the car-data provider by: only the real thing uses AAIdrive's own
+                cdsAuthority: issaBeta ? "com.musik.app.beta.cardata" : "io.bimmergestalt.cardata.provider",
+                cdsPermission: issaBeta ? "com.musik.app.beta.permission" : "io.bimmergestalt.permission"
         ]
 
         // show the Audio Context option for advanced users
@@ -82,7 +89,7 @@ android {
     signingConfigs {
         release
     }
-    if (isRunningOnCI) {
+    if (isRunningOnCI && file("../keystore.jks").exists()) {
         // configure keystore
         signingConfigs.release.storeFile = file("../keystore.jks")
         signingConfigs.release.storePassword = System.getenv("KEYSTORE_PASSWORD")
@@ -114,7 +121,8 @@ android {
                 optimizeCode true
                 proguardFile 'proguard-rules.pro'
             }
-            signingConfig signingConfigs.release
+            // without a keystore the release APK stays unsigned (it is signed afterwards with the Issa key)
+            if (signingConfigs.release.storeFile != null) signingConfig signingConfigs.release
         }
         debug {
             if (runProguardInDebug || isRunningOnCI) {        // make sure to run tests against minified code in CI, but local dev can be fast
@@ -278,6 +286,7 @@ repositories {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation project(':issa')
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$kotlin_coroutines_version"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlin_coroutines_version"
     implementation 'androidx.appcompat:appcompat:1.7.0'

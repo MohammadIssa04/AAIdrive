@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="horizontal" android:gravity="center_vertical" android:padding="10dp"
+    android:background="@drawable/widget_bg">
+    <ImageView android:id="@+id/w_cover" android:layout_width="64dp" android:layout_height="64dp"
+        android:scaleType="centerCrop" android:src="@drawable/ic_widget_cover" android:contentDescription="Cover"/>
+    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+        android:orientation="vertical" android:paddingStart="12dp" android:paddingEnd="6dp">
+        <TextView android:id="@+id/w_title" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Issa Music" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold"
+            android:maxLines="1" android:ellipsize="end"/>
+        <TextView android:id="@+id/w_artist" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Tap to open" android:textColor="#B3B3B3" android:textSize="13sp" android:maxLines="1" android:ellipsize="end"/>
+    </LinearLayout>
+    <ImageButton android:id="@+id/w_prev" android:layout_width="40dp" android:layout_height="40dp"
+        android:background="@android:color/transparent" android:src="@drawable/ic_w_prev" android:contentDescription="Previous"/>
+    <ImageButton android:id="@+id/w_toggle" android:layout_width="48dp" android:layout_height="48dp"
+        android:background="@drawable/widget_play_bg" android:src="@drawable/ic_w_play" android:contentDescription="Play"/>
+    <ImageButton android:id="@+id/w_next" android:layout_width="40dp" android:layout_height="40dp"
+        android:background="@android:color/transparent" android:src="@drawable/ic_w_next" android:contentDescription="Next"/>
+</LinearLayout>

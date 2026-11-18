@@ -472,12 +472,12 @@ class MainService: Service() {
 		if (carInformationObserver.capabilities["navi"] == "true") {
 			if (iDriveConnectionReceiver.brand?.lowercase(Locale.ROOT) == "bmw") {
 				packageManager.setComponentEnabledSetting(
-						ComponentName(BuildConfig.APPLICATION_ID, "${BuildConfig.APPLICATION_ID}.phoneui.NavActivityBMW"),
+						ComponentName(applicationContext.packageName, "me.hufman.androidautoidrive.phoneui.NavActivityBMW"),
 						PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP
 				)
 			} else if (iDriveConnectionReceiver.brand?.lowercase(Locale.ROOT) == "mini") {
 				packageManager.setComponentEnabledSetting(
-						ComponentName(BuildConfig.APPLICATION_ID, "${BuildConfig.APPLICATION_ID}.phoneui.NavActivityMINI"),
+						ComponentName(applicationContext.packageName, "me.hufman.androidautoidrive.phoneui.NavActivityMINI"),
 						PackageManager.COMPONENT_ENABLED_STATE_ENABLED, PackageManager.DONT_KILL_APP
 				)
 			}
@@ -486,11 +486,11 @@ class MainService: Service() {
 
 	fun stopNavigationListener() {
 		packageManager.setComponentEnabledSetting(
-				ComponentName(BuildConfig.APPLICATION_ID, "${BuildConfig.APPLICATION_ID}.phoneui.NavActivityBMW"),
+				ComponentName(applicationContext.packageName, "me.hufman.androidautoidrive.phoneui.NavActivityBMW"),
 				PackageManager.COMPONENT_ENABLED_STATE_DEFAULT, PackageManager.DONT_KILL_APP
 		)
 		packageManager.setComponentEnabledSetting(
-				ComponentName(BuildConfig.APPLICATION_ID, "${BuildConfig.APPLICATION_ID}.phoneui.NavActivityMINI"),
+				ComponentName(applicationContext.packageName, "me.hufman.androidautoidrive.phoneui.NavActivityMINI"),
 				PackageManager.COMPONENT_ENABLED_STATE_DEFAULT, PackageManager.DONT_KILL_APP
 		)
 	}

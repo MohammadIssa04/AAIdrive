@@ -1,0 +1,140 @@
+name: issa-merged
+
+# Issa Music with AAIdrive's car link built in (one app). Builds the release APK (unsigned: it is signed afterwards with the
+# Issa key, outside of GitHub). Results go to two branches: issa-merged-status (result + log) and issa-merged-apk (the APK).
+on:
+  push:
+    branches: ['issa-merged']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the project
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+      - name: Fetch upstream tags for the version name
+        run: git fetch --tags https://github.com/BimmerGestalt/AAIdrive.git || true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+      - name: Prepare cached external dependencies
+        uses: actions/cache@v4
+        with:
+          key: aaidrive_external_${{ hashFiles('.github/actions/download-externals-action/download.sh') }}
+          path: |
+            external
+      - name: Download build dependencies
+        uses: ./.github/actions/download-externals-action
+      - name: Build the release APK
+        id: build
+        env:
+          ISSA_HOST: ${{ secrets.ISSA_HOST }}   # the home server's address (a repository secret, so it stays out of the code and the logs)
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleNomapNonalyticsFullRelease -PissaHost="$ISSA_HOST" --no-daemon --stacktrace 2>&1 | tee build.log
+      - name: Resolved library versions
+        if: always()
+        continue-on-error: true
+        run: |
+          ./gradlew :app:dependencies --configuration nomapNonalyticsFullReleaseRuntimeClasspath --no-daemon -q 2>&1 \
+            | grep -E "androidx.media3|okhttp3|coil|kotlinx-coroutines|androidx.compose.ui:ui:|kotlin-stdlib:" | sed 's/^[ |+\\-]*//' | sort -u > versions.txt || true
+      - name: Keep the APK for the launch test
+        if: steps.build.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-apk
+          path: app/build/outputs/apk/nomapNonalyticsFull/release/*.apk
+      - name: Publish the unsigned APK
+        if: steps.build.outcome == 'success' && github.event.repository.private
+        run: |
+          mkdir -p /tmp/apk && cd /tmp/apk && git init -q && git checkout -q -b issa-merged-apk
+          cp $(ls $GITHUB_WORKSPACE/app/build/outputs/apk/nomapNonalyticsFull/release/*.apk | head -1) app-release-unsigned.apk
+          git add app-release-unsigned.apk
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "unsigned APK of run ${{ github.run_number }} (commit ${{ github.sha }})"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" issa-merged-apk
+      - name: Publish the status
+        if: always()
+        run: |
+          mkdir -p /tmp/st && cd /tmp/st && git init -q && git checkout -q -b issa-merged-status
+          {
+            echo "run ${{ github.run_number }}  commit ${{ github.sha }}"
+            echo "build: ${{ steps.build.outcome }}"
+            ls -la $GITHUB_WORKSPACE/app/build/outputs/apk/nomapNonalyticsFull/release/ 2>&1 || true
+            echo; echo "--- library versions ---"; cat $GITHUB_WORKSPACE/versions.txt 2>&1 || true
+            echo; echo "--- errors ---"; grep -nE "^e: |error:|FAILED|What went wrong|Execution failed|AAPT|R8|Manifest merger" $GITHUB_WORKSPACE/build.log 2>&1 | head -60 || true
+            echo; echo "--- build (end) ---"; tail -n 70 $GITHUB_WORKSPACE/build.log 2>&1 || true
+          } > status.txt
+          git add status.txt
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "status of run ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" issa-merged-status
+
+  smoke:
+    # Starts the built app in an emulator and keeps the log and two screenshots: the only runtime evidence available here.
+    needs: apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: unsigned-apk
+          path: apk
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 17
+      - name: Sign with a throw-away key (only for this test)
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          keytool -genkeypair -keystore t.jks -storepass testtest -keypass testtest -alias t -keyalg RSA -keysize 2048 -validity 2 -dname "CN=t" >/dev/null 2>&1
+          $BT/zipalign -p -f 4 apk/*.apk aligned.apk
+          $BT/apksigner sign --ks t.jks --ks-pass pass:testtest --key-pass pass:testtest --out app.apk aligned.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the app in an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: |
+            adb install -r app.apk > install.txt 2>&1 || true
+            adb logcat -c
+            adb shell am start -W -n com.musik.app.beta/com.musik.app.MainActivity > start1.txt 2>&1 || true
+            sleep 20
+            adb exec-out screencap -p > shot1.png || true
+            adb shell am start -W -n com.musik.app.beta/me.hufman.androidautoidrive.phoneui.MainActivity > start2.txt 2>&1 || true
+            sleep 10
+            adb exec-out screencap -p > shot2.png || true
+            adb shell pidof com.musik.app.beta > pid.txt 2>&1 || true
+            adb shell dumpsys package com.musik.app.beta | grep -E "versionName|versionCode|targetSdk" > pkg.txt 2>&1 || true
+            adb logcat -d > logcat.txt 2>&1 || true
+      - name: Publish the launch test
+        if: always()
+        run: |
+          mkdir -p /tmp/sm && cd /tmp/sm && git init -q && git checkout -q -b issa-merged-smoke
+          {
+            echo "run ${{ github.run_number }}  commit ${{ github.sha }}"
+            echo "--- install ---"; cat $GITHUB_WORKSPACE/install.txt 2>&1
+            echo "--- start 1 (Issa Music) ---"; cat $GITHUB_WORKSPACE/start1.txt 2>&1
+            echo "--- start 2 (AAIdrive settings) ---"; cat $GITHUB_WORKSPACE/start2.txt 2>&1
+            echo "--- pid ---"; cat $GITHUB_WORKSPACE/pid.txt 2>&1
+            echo "--- package ---"; cat $GITHUB_WORKSPACE/pkg.txt 2>&1
+            echo "--- FATAL / crashes ---"; grep -nE "FATAL EXCEPTION|AndroidRuntime|Process: com.musik|ANR in|has died|crash" $GITHUB_WORKSPACE/logcat.txt | head -40
+            echo "--- app log lines ---"; grep -nE "com.musik|MainService|AndroidAutoIdrive|IssaApp|me.hufman" $GITHUB_WORKSPACE/logcat.txt | head -80
+          } > smoke.txt 2>&1
+          cp $GITHUB_WORKSPACE/shot1.png $GITHUB_WORKSPACE/shot2.png . 2>/dev/null || true
+          tail -n 400 $GITHUB_WORKSPACE/logcat.txt > logcat-tail.txt 2>/dev/null || true
+          git add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -qm "launch test of run ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" issa-merged-smoke
